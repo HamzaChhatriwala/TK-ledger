@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
-import { Button } from './Button';
+import { useTheme } from '../../lib/theme/ThemeContext';
 
 interface ModalProps {
   visible: boolean;
@@ -18,6 +18,7 @@ interface ModalProps {
 }
 
 export const Modal: React.FC<ModalProps> = ({ visible, onClose, title, children, footer }) => {
+  const { theme } = useTheme();
   return (
     <RNModal
       visible={visible}
@@ -25,18 +26,18 @@ export const Modal: React.FC<ModalProps> = ({ visible, onClose, title, children,
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
+      <View style={[styles.overlay, { backgroundColor: theme.overlay }]}>
+        <View style={[styles.modal, { backgroundColor: theme.card }]}>
           {title && (
-            <View style={styles.header}>
-              <Text style={styles.title}>{title}</Text>
+            <View style={[styles.header, { borderBottomColor: theme.border }]}>
+              <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Text style={styles.closeText}>×</Text>
+                <Text style={[styles.closeText, { color: theme.textLight }]}>×</Text>
               </TouchableOpacity>
             </View>
           )}
           <ScrollView style={styles.content}>{children}</ScrollView>
-          {footer && <View style={styles.footer}>{footer}</View>}
+          {footer && <View style={[styles.footer, { borderTopColor: theme.border }]}>{footer}</View>}
         </View>
       </View>
     </RNModal>
@@ -46,13 +47,11 @@ export const Modal: React.FC<ModalProps> = ({ visible, onClose, title, children,
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modal: {
-    backgroundColor: '#FFF',
     borderRadius: 12,
     width: '100%',
     maxWidth: 600,
@@ -64,12 +63,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000',
   },
   closeButton: {
     width: 32,
@@ -79,7 +76,6 @@ const styles = StyleSheet.create({
   },
   closeText: {
     fontSize: 28,
-    color: '#999',
     lineHeight: 32,
   },
   content: {
@@ -88,7 +84,6 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#EEE',
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,

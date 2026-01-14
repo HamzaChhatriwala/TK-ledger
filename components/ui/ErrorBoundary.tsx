@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Button } from './Button';
+import { ThemeProvider, useTheme } from '../../lib/theme/ThemeContext';
 
 interface Props {
   children: ReactNode;
@@ -11,7 +12,7 @@ interface State {
   error?: Error;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundaryInner extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false };
@@ -27,22 +28,37 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      return (
-        <View style={styles.container}>
-          <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.message}>
-            {this.state.error?.message || 'An unexpected error occurred'}
-          </Text>
-          <Button
-            title="Try Again"
-            onPress={() => this.setState({ hasError: false, error: undefined })}
-            style={styles.button}
-          />
-        </View>
-      );
+      return <ErrorDisplay error={this.state.error} onRetry={() => this.setState({ hasError: false, error: undefined })} />;
     }
 
     return this.props.children;
+  }
+}
+
+const ErrorDisplay: React.FC<{ error?: Error; onRetry: () => void }> = ({ error, onRetry }) => {
+  const { theme } = useTheme();
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.title, { color: theme.text }]}>Something went wrong</Text>
+      <Text style={[styles.message, { color: theme.textSecondary }]}>
+        {error?.message || 'An unexpected error occurred'}
+      </Text>
+      <Button
+        title="Try Again"
+        onPress={onRetry}
+        style={styles.button}
+      />
+    </View>
+  );
+};
+
+export class ErrorBoundary extends Component<Props> {
+  render() {
+    return (
+      <ThemeProvider>
+        <ErrorBoundaryInner {...this.props} />
+      </ThemeProvider>
+    );
   }
 }
 
@@ -57,11 +73,9 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 12,
-    color: '#000',
   },
   message: {
     fontSize: 16,
-    color: '#666',
     textAlign: 'center',
     marginBottom: 24,
   },

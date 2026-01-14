@@ -38,6 +38,7 @@ export interface Invoice {
   total: number;
   notes?: string;
   pdf_url?: string;
+  with_bill?: boolean; // true = with bill, false = without bill
   created_at: string;
   updated_at: string;
   created_by: string;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MainLayout } from '../../../components/layout/MainLayout';
 import { Card } from '../../../components/ui/Card';
@@ -210,4 +210,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+
+
 

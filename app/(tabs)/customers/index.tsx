@@ -32,11 +32,6 @@ export default function CustomersScreen() {
     setShowModal(true);
   };
 
-  const handleEdit = (customer: Customer) => {
-    setEditingCustomer(customer);
-    setShowModal(true);
-  };
-
   const handleSubmit = async (
     customerData: Omit<Customer, 'id' | 'created_at' | 'updated_at' | 'created_by' | 'updated_by'>
   ) => {
@@ -142,3 +137,7 @@ const styles = StyleSheet.create({
     minHeight: 32,
   },
 });
+
+
+
+

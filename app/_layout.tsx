@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase/client';
 import { Session } from '@supabase/supabase-js';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary';
+import { ThemeProvider } from '../lib/theme/ThemeContext';
 
 const queryClient = new QueryClient();
 
@@ -57,9 +58,11 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <RootLayoutNav />
-      </QueryClientProvider>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <RootLayoutNav />
+        </QueryClientProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

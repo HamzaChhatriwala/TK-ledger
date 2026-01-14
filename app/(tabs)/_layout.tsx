@@ -5,7 +5,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { display: 'none' }, // We use custom TabBar component
+        tabBarStyle: { display: 'none' },
       }}
     >
       <Tabs.Screen name="customers" />
@@ -15,4 +15,7 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+
+
 

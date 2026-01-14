@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -154,4 +154,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+
+
 

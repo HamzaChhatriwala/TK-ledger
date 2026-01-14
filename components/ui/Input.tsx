@@ -1,5 +1,6 @@
 import React from 'react';
 import { TextInput, View, Text, StyleSheet, TextInputProps, ViewStyle } from 'react-native';
+import { useTheme } from '../../lib/theme/ThemeContext';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -14,15 +15,24 @@ export const Input: React.FC<InputProps> = ({
   style,
   ...props
 }) => {
+  const { theme } = useTheme();
   return (
     <View style={[styles.container, containerStyle]}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: theme.text }]}>{label}</Text>}
       <TextInput
-        style={[styles.input, error && styles.inputError, style]}
-        placeholderTextColor="#999"
+        style={[
+          styles.input,
+          {
+            borderColor: error ? theme.error : theme.inputBorder,
+            backgroundColor: theme.inputBackground,
+            color: theme.text,
+          },
+          style,
+        ]}
+        placeholderTextColor={theme.textLight}
         {...props}
       />
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>}
     </View>
   );
 };

@@ -1,33 +1,26 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase/client';
 import { rpc } from '../supabase/rpc';
-import type { Invoice, InvoiceItem, InvoiceStatus } from '../../types';
+import type { Invoice, InvoiceItem } from '../../types';
 
-export interface InvoiceFilters {
-  status?: InvoiceStatus;
+export function useInvoices(filters?: {
   customerId?: string;
-  dateFrom?: string;
-  dateTo?: string;
+  status?: string;
   search?: string;
-}
-
-export function useInvoices(filters?: InvoiceFilters) {
+}) {
   return useQuery({
     queryKey: ['invoices', filters],
     queryFn: async (): Promise<Invoice[]> => {
-      let query = supabase.from('invoices').select('*').order('date', { ascending: false });
+      let query = supabase
+        .from('invoices')
+        .select('*')
+        .order('date', { ascending: false });
 
-      if (filters?.status) {
-        query = query.eq('status', filters.status);
-      }
       if (filters?.customerId) {
         query = query.eq('customer_id', filters.customerId);
       }
-      if (filters?.dateFrom) {
-        query = query.gte('date', filters.dateFrom);
-      }
-      if (filters?.dateTo) {
-        query = query.lte('date', filters.dateTo);
+      if (filters?.status) {
+        query = query.eq('status', filters.status);
       }
       if (filters?.search) {
         query = query.or(`invoice_no.ilike.%${filters.search}%`);
@@ -90,11 +83,10 @@ export function useCreateInvoice() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      let invoiceNo = invoice.invoice_no;
-      if (!invoiceNo) {
-        invoiceNo = await rpc.generateInvoiceNo();
-      }
+      // Generate invoice number
+      const invoiceNo = await rpc.generateInvoiceNo();
 
+      // Create invoice
       const { data: invoiceData, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
@@ -107,18 +99,20 @@ export function useCreateInvoice() {
 
       if (invoiceError) throw invoiceError;
 
+      // Create invoice items
       if (items.length > 0) {
-        const { error: itemsError } = await supabase
-          .from('invoice_items')
-          .insert(
-            items.map((item) => ({
-              ...item,
-              invoice_id: invoiceData.id,
-            }))
-          );
+        const { error: itemsError } = await supabase.from('invoice_items').insert(
+          items.map((item) => ({
+            ...item,
+            invoice_id: invoiceData.id,
+          }))
+        );
 
         if (itemsError) throw itemsError;
       }
+
+      // Update invoice status
+      await rpc.updateInvoiceStatus(invoiceData.id);
 
       return invoiceData as Invoice;
     },
@@ -128,21 +122,29 @@ export function useCreateInvoice() {
   });
 }
 
-export function useFinalizeInvoice() {
+export function useUpdateInvoice() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, pdfUrl }: { id: string; pdfUrl?: string }) => {
+    mutationFn: async ({
+      id,
+      updates,
+      items,
+    }: {
+      id: string;
+      updates: Partial<Invoice>;
+      items?: Omit<InvoiceItem, 'id' | 'invoice_id' | 'created_at'>[];
+    }) => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Update invoice
       const { data, error } = await supabase
         .from('invoices')
         .update({
-          status: 'unpaid',
-          pdf_url: pdfUrl,
+          ...updates,
           updated_by: user.id,
         })
         .eq('id', id)
@@ -150,12 +152,76 @@ export function useFinalizeInvoice() {
         .single();
 
       if (error) throw error;
+
+      // Update items if provided
+      if (items !== undefined) {
+        // Delete existing items
+        await supabase.from('invoice_items').delete().eq('invoice_id', id);
+
+        // Insert new items
+        if (items.length > 0) {
+          const { error: itemsError } = await supabase.from('invoice_items').insert(
+            items.map((item) => ({
+              ...item,
+              invoice_id: id,
+            }))
+          );
+
+          if (itemsError) throw itemsError;
+        }
+
+        // Recalculate totals
+        const { data: allItems } = await supabase
+          .from('invoice_items')
+          .select('*')
+          .eq('invoice_id', id);
+
+        if (allItems) {
+          const subtotal = allItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+          const tax = allItems.reduce(
+            (sum, item) => sum + (item.quantity * item.unit_price * item.tax_percent) / 100,
+            0
+          );
+          const total = subtotal + tax;
+
+          await supabase
+            .from('invoices')
+            .update({
+              subtotal,
+              tax,
+              total,
+            })
+            .eq('id', id);
+        }
+      }
+
+      // Update invoice status
+      await rpc.updateInvoiceStatus(id);
+
       return data as Invoice;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoice', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['invoice-items', data.id] });
     },
   });
 }
+
+export function useDeleteInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('invoices').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    },
+  });
+}
+
+
+
 

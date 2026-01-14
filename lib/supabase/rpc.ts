@@ -1,8 +1,6 @@
 import { supabase } from './client';
-import type { Payment, PaymentAllocation } from '../../types';
 
 export const rpc = {
-  // Calculate customer balance
   async calculateCustomerBalance(customerId: string): Promise<number> {
     const { data, error } = await supabase.rpc('calculate_customer_balance', {
       p_customer_id: customerId,
@@ -11,7 +9,6 @@ export const rpc = {
     return data || 0;
   },
 
-  // Apply payment to invoices
   async applyPayment(
     paymentId: string,
     allocations: Array<{ invoice_id: string; amount: number }>
@@ -23,14 +20,21 @@ export const rpc = {
     if (error) throw error;
   },
 
-  // Generate next invoice number
   async generateInvoiceNo(): Promise<string> {
+    // Try to use RPC function if available
     const { data, error } = await supabase.rpc('generate_invoice_no');
-    if (error) throw error;
-    return data;
+    if (!error && data) return data;
+    
+    // Fallback: generate invoice number based on date and count
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+    const { count } = await supabase
+      .from('invoices')
+      .select('*', { count: 'exact', head: true });
+    const invoiceCount = (count || 0) + 1;
+    return `INV-${dateStr}-${invoiceCount.toString().padStart(4, '0')}`;
   },
 
-  // Update invoice status
   async updateInvoiceStatus(invoiceId: string): Promise<void> {
     const { error } = await supabase.rpc('update_invoice_status', {
       p_invoice_id: invoiceId,

@@ -5,157 +5,159 @@ import type { Invoice, Payment, PaymentAllocation } from '../../types';
 
 export interface LedgerEntry {
   id: string;
-  type: 'invoice' | 'payment';
   date: string;
+  type: 'invoice' | 'payment';
   description: string;
   debit: number;
   credit: number;
   balance: number;
   reference?: string;
+  invoice?: Invoice;
+  payment?: Payment;
 }
 
-export interface CustomerLedger {
-  customerId: string;
-  entries: LedgerEntry[];
-  openingBalance: number;
-  closingBalance: number;
-  totalOutstanding: number;
-}
-
-export function useCustomerLedger(customerId: string, dateFrom?: string, dateTo?: string) {
+export function useCustomerLedger(customerId: string) {
   return useQuery({
-    queryKey: ['customer-ledger', customerId, dateFrom, dateTo],
-    queryFn: async (): Promise<CustomerLedger> => {
-      let invoiceQuery = supabase
+    queryKey: ['ledger', customerId],
+    queryFn: async (): Promise<LedgerEntry[]> => {
+      if (!customerId) return [];
+
+      // Get all invoices for customer
+      const { data: invoices, error: invoicesError } = await supabase
         .from('invoices')
         .select('*')
         .eq('customer_id', customerId)
-        .in('status', ['unpaid', 'partial', 'paid']);
+        .order('date', { ascending: true });
 
-      if (dateFrom) {
-        invoiceQuery = invoiceQuery.gte('date', dateFrom);
-      }
-      if (dateTo) {
-        invoiceQuery = invoiceQuery.lte('date', dateTo);
-      }
+      if (invoicesError) throw invoicesError;
 
-      const { data: invoices, error: invoiceError } = await invoiceQuery.order('date', {
-        ascending: true,
-      });
-      if (invoiceError) throw invoiceError;
-
-      let paymentQuery = supabase
+      // Get all payments for customer
+      const { data: payments, error: paymentsError } = await supabase
         .from('payments')
         .select('*')
-        .eq('customer_id', customerId);
+        .eq('customer_id', customerId)
+        .order('date', { ascending: true });
 
-      if (dateFrom) {
-        paymentQuery = paymentQuery.gte('date', dateFrom);
-      }
-      if (dateTo) {
-        paymentQuery = paymentQuery.lte('date', dateTo);
-      }
+      if (paymentsError) throw paymentsError;
 
-      const { data: payments, error: paymentError } = await paymentQuery.order('date', {
-        ascending: true,
-      });
-      if (paymentError) throw paymentError;
-
+      // Get all payment allocations
       const invoiceIds = invoices?.map((inv) => inv.id) || [];
-      const { data: allocations, error: allocationError } = await supabase
-        .from('payment_allocations')
-        .select('*')
-        .in('invoice_id', invoiceIds);
+      const paymentIds = payments?.map((p) => p.id) || [];
 
-      if (allocationError) throw allocationError;
+      let allocations: PaymentAllocation[] = [];
+      if (paymentIds.length > 0) {
+        const { data: allocs, error: allocsError } = await supabase
+          .from('payment_allocations')
+          .select('*')
+          .in('payment_id', paymentIds);
 
-      const entries: LedgerEntry[] = [];
-      let runningBalance = 0;
-
-      const allTransactions: Array<{
-        type: 'invoice' | 'payment';
-        date: string;
-        data: Invoice | Payment;
-      }> = [
-        ...(invoices || []).map((inv) => ({ type: 'invoice' as const, date: inv.date, data: inv })),
-        ...(payments || []).map((pay) => ({ type: 'payment' as const, date: pay.date, data: pay })),
-      ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-      for (const transaction of allTransactions) {
-        if (transaction.type === 'invoice') {
-          const invoice = transaction.data as Invoice;
-          const allocatedAmount =
-            allocations
-              ?.filter((a) => a.invoice_id === invoice.id)
-              .reduce((sum, a) => sum + a.amount, 0) || 0;
-          const outstanding = invoice.total - allocatedAmount;
-
-          if (outstanding > 0 || invoice.status === 'paid') {
-            runningBalance += invoice.total;
-            entries.push({
-              id: invoice.id,
-              type: 'invoice',
-              date: invoice.date,
-              description: `Invoice ${invoice.invoice_no}`,
-              debit: invoice.total,
-              credit: 0,
-              balance: runningBalance,
-              reference: invoice.invoice_no,
-            });
-          }
-        } else {
-          const payment = transaction.data as Payment;
-          runningBalance -= payment.amount;
-          entries.push({
-            id: payment.id,
-            type: 'payment',
-            date: payment.date,
-            description: `Payment - ${payment.method.replace('_', ' ')}`,
-            debit: 0,
-            credit: payment.amount,
-            balance: runningBalance,
-            reference: payment.reference,
-          });
-        }
+        if (allocsError) throw allocsError;
+        allocations = allocs || [];
       }
 
-      const totalOutstanding = await rpc.calculateCustomerBalance(customerId);
+      // Calculate allocated amounts per invoice
+      const invoiceAllocated: Record<string, number> = {};
+      allocations.forEach((alloc) => {
+        invoiceAllocated[alloc.invoice_id] =
+          (invoiceAllocated[alloc.invoice_id] || 0) + alloc.amount;
+      });
 
-      return {
-        customerId,
-        entries,
-        openingBalance: 0,
-        closingBalance: runningBalance,
-        totalOutstanding,
-      };
+      // Combine all entries first
+      const entries: LedgerEntry[] = [];
+
+      // Add invoice entries
+      invoices?.forEach((invoice) => {
+        entries.push({
+          id: `invoice-${invoice.id}`,
+          date: invoice.date,
+          type: 'invoice',
+          description: `Invoice ${invoice.invoice_no}`,
+          debit: invoice.total,
+          credit: 0,
+          balance: 0, // Will be calculated after sorting
+          reference: invoice.invoice_no,
+          invoice,
+        });
+      });
+
+      // Add payment entries
+      // All payments are included, regardless of whether they have references or allocations
+      payments?.forEach((payment) => {
+        const refText = payment.reference ? ` (${payment.reference})` : '';
+        entries.push({
+          id: `payment-${payment.id}`,
+          date: payment.date,
+          type: 'payment',
+          description: `Payment - ${payment.method}${refText}`,
+          debit: 0,
+          credit: payment.amount,
+          balance: 0, // Will be calculated after sorting
+          reference: payment.reference || undefined,
+          payment,
+        });
+      });
+
+      // Sort by date and time (invoices before payments on same date)
+      entries.sort((a, b) => {
+        const dateA = new Date(a.date).getTime();
+        const dateB = new Date(b.date).getTime();
+        if (dateA !== dateB) {
+          return dateA - dateB;
+        }
+        // If same date, invoices come before payments
+        return a.type === 'invoice' ? -1 : 1;
+      });
+
+      // Calculate running balance chronologically
+      let runningBalance = 0;
+      return entries.map((entry) => {
+        if (entry.type === 'invoice') {
+          runningBalance += entry.debit; // Add invoice amount
+        } else {
+          runningBalance -= entry.credit; // Subtract payment amount
+        }
+        return { ...entry, balance: runningBalance };
+      });
     },
     enabled: !!customerId,
   });
 }
 
-export function useOutstandingReceivables() {
+export function useAllLedgers() {
   return useQuery({
-    queryKey: ['outstanding-receivables'],
-    queryFn: async (): Promise<Array<{ customerId: string; customerName: string; amount: number }>> => {
-      const { data: customers, error: customerError } = await supabase
+    queryKey: ['ledgers'],
+    queryFn: async (): Promise<Array<{ customerId: string; customerName: string; balance: number }>> => {
+      // Get all customers
+      const { data: customers, error: customersError } = await supabase
         .from('customers')
         .select('id, name, customer_id')
         .is('deleted_at', null);
 
-      if (customerError) throw customerError;
+      if (customersError) throw customersError;
 
-      const receivables = await Promise.all(
+      // Calculate balance for each customer
+      const balances = await Promise.all(
         (customers || []).map(async (customer) => {
-          const balance = await rpc.calculateCustomerBalance(customer.id);
-          return {
-            customerId: customer.id,
-            customerName: customer.name,
-            amount: balance,
-          };
+          try {
+            const balance = await rpc.calculateCustomerBalance(customer.id);
+            return {
+              customerId: customer.id,
+              customerName: customer.name,
+              customerCode: customer.customer_id,
+              balance,
+            };
+          } catch {
+            return {
+              customerId: customer.id,
+              customerName: customer.name,
+              customerCode: customer.customer_id,
+              balance: 0,
+            };
+          }
         })
       );
 
-      return receivables.filter((r) => r.amount > 0);
+      return balances.filter((b) => b.balance !== 0).sort((a, b) => b.balance - a.balance);
     },
   });
 }

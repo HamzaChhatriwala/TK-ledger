@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../../lib/supabase/client';
+import { useTheme } from '../../lib/theme/ThemeContext';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 interface HeaderProps {
   title: string;
@@ -11,6 +13,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ title, showBack, rightAction }) => {
   const router = useRouter();
+  const { theme } = useTheme();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -18,19 +21,20 @@ export const Header: React.FC<HeaderProps> = ({ title, showBack, rightAction }) 
   };
 
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
       <View style={styles.left}>
         {showBack && (
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backText}>←</Text>
+            <Text style={[styles.backText, { color: theme.primary }]}>←</Text>
           </TouchableOpacity>
         )}
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       </View>
       <View style={styles.right}>
         {rightAction}
+        <ThemeToggle />
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
+          <Text style={[styles.logoutText, { color: theme.error }]}>Logout</Text>
         </TouchableOpacity>
       </View>
     </View>

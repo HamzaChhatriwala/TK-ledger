@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
+import { useTheme } from '../../lib/theme/ThemeContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -13,6 +14,7 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { theme } = useTheme();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -47,16 +49,16 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.content}>
-          <Text style={styles.title}>Toy Kingdom Ledger</Text>
-          <Text style={styles.subtitle}>Sign in to continue</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Toy Kingdom Ledger</Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Sign in to continue</Text>
 
           <Card style={styles.card}>
-            {error && <Text style={styles.errorText}>{error}</Text>}
+            {error && <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>}
 
             <Input
               label="Email"
@@ -80,9 +82,9 @@ export default function LoginScreen() {
             <Button title="Sign In" onPress={handleLogin} style={styles.button} />
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
+              <Text style={[styles.footerText, { color: theme.textSecondary }]}>Don't have an account? </Text>
               <Text
-                style={styles.linkText}
+                style={[styles.linkText, { color: theme.primary }]}
                 onPress={() => router.push('/(auth)/signup')}
               >
                 Sign Up
@@ -98,7 +100,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
   scrollContent: {
     flexGrow: 1,
@@ -115,19 +116,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 8,
-    color: '#000',
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 32,
-    color: '#666',
   },
   card: {
     marginTop: 20,
   },
   errorText: {
-    color: '#FF3B30',
     fontSize: 14,
     marginBottom: 16,
     textAlign: 'center',
@@ -142,11 +140,9 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#666',
   },
   linkText: {
     fontSize: 14,
-    color: '#007AFF',
     fontWeight: '600',
   },
 });

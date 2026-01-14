@@ -24,12 +24,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png",
-      "bundler": "metro"
-    },
-    "scheme": "tk-ledger",
-    "plugins": [
-      "expo-router"
-    ]
+      "favicon": "./assets/favicon.png"
+    }
   }
 }

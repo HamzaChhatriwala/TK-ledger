@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native
 import type { Customer } from '../../types';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
 import { rpc } from '../../lib/supabase/rpc';
+import { useTheme } from '../../lib/theme/ThemeContext';
 
 interface CustomerListProps {
   customers: Customer[];
@@ -19,6 +20,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({
   onCustomerPress,
   loading,
 }) => {
+  const { theme } = useTheme();
   const [customersWithBalance, setCustomersWithBalance] = React.useState<CustomerWithBalance[]>([]);
 
   React.useEffect(() => {
@@ -48,7 +50,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({
   if (customersWithBalance.length === 0 && customers.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No customers found</Text>
+        <Text style={[styles.emptyText, { color: theme.textSecondary }]}>No customers found</Text>
       </View>
     );
   }
@@ -63,22 +65,22 @@ export const CustomerList: React.FC<CustomerListProps> = ({
         const customer = item as CustomerWithBalance;
         return (
           <TouchableOpacity
-            style={styles.item}
+            style={[styles.item, { backgroundColor: theme.card, shadowColor: theme.shadow }]}
             onPress={() => onCustomerPress(customer)}
             activeOpacity={0.7}
           >
             <View style={styles.itemContent}>
-              <Text style={styles.name}>{customer.name}</Text>
-              <Text style={styles.customerId}>{customer.customer_id}</Text>
-              {customer.phone && <Text style={styles.phone}>{customer.phone}</Text>}
-              {customer.email && <Text style={styles.email}>{customer.email}</Text>}
+              <Text style={[styles.name, { color: theme.text }]}>{customer.name}</Text>
+              <Text style={[styles.customerId, { color: theme.textSecondary }]}>{customer.customer_id}</Text>
+              {customer.phone && <Text style={[styles.phone, { color: theme.textSecondary }]}>{customer.phone}</Text>}
+              {customer.email && <Text style={[styles.email, { color: theme.textSecondary }]}>{customer.email}</Text>}
               {customer.outstandingBalance !== undefined && (
-                <View style={styles.balanceContainer}>
-                  <Text style={styles.balanceLabel}>Outstanding:</Text>
+                <View style={[styles.balanceContainer, { borderTopColor: theme.border }]}>
+                  <Text style={[styles.balanceLabel, { color: theme.textSecondary }]}>Outstanding:</Text>
                   <Text
                     style={[
                       styles.balanceAmount,
-                      customer.outstandingBalance > 0 && styles.balanceNegative,
+                      { color: customer.outstandingBalance > 0 ? theme.error : theme.success },
                     ]}
                   >
                     ₹{customer.outstandingBalance.toLocaleString()}
@@ -86,7 +88,7 @@ export const CustomerList: React.FC<CustomerListProps> = ({
                 </View>
               )}
             </View>
-            <Text style={styles.arrow}>→</Text>
+            <Text style={[styles.arrow, { color: theme.textLight }]}>→</Text>
           </TouchableOpacity>
         );
       }}
@@ -102,11 +104,9 @@ const styles = StyleSheet.create({
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
     borderRadius: 8,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 1,
@@ -121,22 +121,18 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
     marginBottom: 4,
   },
   customerId: {
     fontSize: 14,
-    color: '#666',
     marginBottom: 2,
   },
   phone: {
     fontSize: 14,
-    color: '#666',
     marginTop: 4,
   },
   email: {
     fontSize: 14,
-    color: '#666',
     marginTop: 2,
   },
   balanceContainer: {
@@ -145,25 +141,18 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#EEE',
   },
   balanceLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
     marginRight: 8,
   },
   balanceAmount: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#34C759',
-  },
-  balanceNegative: {
-    color: '#FF3B30',
   },
   arrow: {
     fontSize: 20,
-    color: '#999',
     marginLeft: 12,
   },
   emptyContainer: {
@@ -174,7 +163,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
   },
 });
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
+import { useTheme } from '../../lib/theme/ThemeContext';
 
 interface ButtonProps {
   title: string;
@@ -20,14 +21,45 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
 }) => {
+  const { theme } = useTheme();
+
+  const getButtonStyle = () => {
+    switch (variant) {
+      case 'primary':
+        return { backgroundColor: theme.primary };
+      case 'secondary':
+        return { backgroundColor: theme.secondary };
+      case 'outline':
+        return { backgroundColor: 'transparent', borderWidth: 1, borderColor: theme.primary };
+      case 'danger':
+        return { backgroundColor: theme.error };
+      default:
+        return { backgroundColor: theme.primary };
+    }
+  };
+
+  const getTextColor = () => {
+    switch (variant) {
+      case 'primary':
+      case 'danger':
+        return theme.text === '#FFFFFF' ? '#FFFFFF' : '#FFFFFF';
+      case 'secondary':
+        return theme.text;
+      case 'outline':
+        return theme.primary;
+      default:
+        return '#FFFFFF';
+    }
+  };
+
   const buttonStyle = [
     styles.button,
-    styles[variant],
+    getButtonStyle(),
     (disabled || loading) && styles.disabled,
     style,
   ];
 
-  const buttonTextStyle = [styles.text, styles[`${variant}Text`], textStyle];
+  const buttonTextStyle = [styles.text, { color: getTextColor() }, textStyle];
 
   return (
     <TouchableOpacity
@@ -37,7 +69,7 @@ export const Button: React.FC<ButtonProps> = ({
       activeOpacity={0.7}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#fff' : '#007AFF'} />
+        <ActivityIndicator color={getTextColor()} />
       ) : (
         <Text style={buttonTextStyle}>{title}</Text>
       )}
